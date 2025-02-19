@@ -14,7 +14,7 @@ module UART(
     wire new_clk;
     
     //module instantiations
-    uart_transmitter instance1(.clk(new_clk),.reset(reset),.start(start_transmitting),.datain(datain),.transmit(transmit));
+    uart_transmitter instance1(.clk(new_clk),.reset(reset),.start(start_transmitting),.databit(datain),.transmit(transmit));
     baud_gen instance2(.clk(clk),.baud_rate(new_clk));
     
     

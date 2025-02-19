@@ -2,8 +2,7 @@
 
 module uart_transmitter (
     input clk,
-    input reset,
-    input start,              
+    input reset,            
     input [7:0] databit,
     output reg transmit
 );
@@ -53,7 +52,5 @@ module uart_transmitter (
         end
         default:next_state = IDLE;
         endcase
-    end
-    
-    
+    end 
 endmodule
