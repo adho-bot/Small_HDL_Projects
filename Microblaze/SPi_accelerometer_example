@@ -1,0 +1,146 @@
+#include "xspi.h"
+#include "xparameters.h"
+#include "xil_printf.h"
+#include "sleep.h"
+
+// ADXL362 Register Addresses
+#define ADXL362_REG_DEVID_AD    0x00    // Device ID register (should read 0xAD)
+#define ADXL362_REG_DEVID_MST   0x01    // MEMS ID register (should read 0x1D)
+#define ADXL362_REG_PARTID      0x02    // Part ID register (should read 0xF2)
+
+#define ADXL362_REG_XDATA       0x08    //8 bit x data
+#define ADXL362_REG_YDATA       0x09    //8 bit y data
+#define ADXL362_REG_ZDATA       0x0A    //8 bit z data
+// SPI Commands
+#define ADXL362_CMD_READ        0x0B    // Read command
+#define ADXL362_CMD_WRITE       0x0A    // Write command
+
+// SPI Device Configuration
+#define SPI_SELECT_SLAVE        0x01    // Slave select line
+
+XSpi SpiInstance;
+
+// Function to initialize SPI
+int InitializeSPI() {
+    XSpi_Config *ConfigPtr;
+    int Status;
+    
+    // Initialize the SPI driver
+    ConfigPtr = XSpi_LookupConfig(XPAR_SPI_ACCELEROMETER_BASEADDR);
+    if (ConfigPtr == NULL) {
+        return XST_DEVICE_NOT_FOUND;
+    }
+    
+    Status = XSpi_CfgInitialize(&SpiInstance, ConfigPtr, ConfigPtr->BaseAddress);
+    if (Status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+    
+    // Set SPI options (Master mode, manual slave select)
+    Status = XSpi_SetOptions(&SpiInstance, XSP_MASTER_OPTION |
+                            XSP_MANUAL_SSELECT_OPTION);
+    if (Status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+    
+    // Start the SPI driver
+    Status = XSpi_Start(&SpiInstance);
+    if (Status != XST_SUCCESS) {
+        return XST_FAILURE;
+    }
+    
+    // Disable Global interrupt to use polled mode operation
+    XSpi_IntrGlobalDisable(&SpiInstance);
+    
+    return XST_SUCCESS;
+}
+
+// Function to read a register from ADXL362
+u8 ADXL362_ReadRegister(u8 reg_addr) {
+    u8 send_buffer[3];
+    u8 recv_buffer[3];
+    
+    // Prepare command: READ command, register address, dummy byte
+    send_buffer[0] = ADXL362_CMD_READ;
+    send_buffer[1] = reg_addr;
+    send_buffer[2] = 0x00;  // Dummy byte for reading
+    
+    // Select the slave
+    XSpi_SetSlaveSelect(&SpiInstance, SPI_SELECT_SLAVE);
+    
+    // Transfer data
+    XSpi_Transfer(&SpiInstance, send_buffer, recv_buffer, 3);
+    
+    // Return the received data (3rd byte contains the register value)
+    return recv_buffer[2];
+}
+
+// Function to check ADXL362 device ID
+int CheckADXL362DeviceID() {
+    u8 device_id_ad, device_id_mst, part_id;
+    int status = XST_SUCCESS;
+    
+    xil_printf("Checking ADXL362 Device ID...\n\r");
+    
+    // Read device ID registers
+    device_id_ad = ADXL362_ReadRegister(ADXL362_REG_DEVID_AD);
+    device_id_mst = ADXL362_ReadRegister(ADXL362_REG_DEVID_MST);
+    part_id = ADXL362_ReadRegister(ADXL362_REG_PARTID);
+    
+    // Display the values
+    xil_printf("Device ID AD: 0x%02X (Expected: 0xAD)\n\r", device_id_ad);
+    xil_printf("Device ID MST: 0x%02X (Expected: 0x1D)\n\r", device_id_mst);
+    xil_printf("Part ID: 0x%02X (Expected: 0xF2)\n\r", part_id);
+    
+    // Verify the values
+    if (device_id_ad == 0xAD && device_id_mst == 0x1D && part_id == 0xF2) {
+        xil_printf("ADXL362 Device ID verification: PASSED\n\r");
+        status = XST_SUCCESS;
+    } else {
+        xil_printf("ADXL362 Device ID verification: FAILED\n\r");
+        status = XST_FAILURE;
+    }
+    
+    return status;
+}
+
+int main() {
+    int Status;
+    int x, y, z;
+    
+    xil_printf("ADXL362 Device ID Check Application\n\r");
+    xil_printf("===================================\n\r");
+    
+    // Initialize SPI
+    Status = InitializeSPI();
+    if (Status != XST_SUCCESS) {
+        xil_printf("SPI Initialization Failed\n\r");
+        return XST_FAILURE;
+    }
+    
+    xil_printf("SPI Initialized Successfully\n\r");
+    
+    /*
+    // Check ADXL362 Device ID
+    Status = CheckADXL362DeviceID();
+    
+    if (Status == XST_SUCCESS) {
+        xil_printf("ADXL362 is connected and responding correctly!\n\r");
+    } else {
+        xil_printf("ADXL362 communication failed or device not found!\n\r");
+    }
+    */
+
+    while(1){
+        x = ADXL362_ReadRegister(ADXL362_REG_XDATA);
+        y = ADXL362_ReadRegister(ADXL362_REG_YDATA);
+        z = ADXL362_ReadRegister(ADXL362_REG_ZDATA);
+
+        xil_printf("x = %d | y = %d | z = %d \n" , x, y, z);
+        msleep(500);
+    }
+
+
+
+
+}
