@@ -1,3 +1,6 @@
+//https://www.analog.com/media/en/technical-documentation/data-sheets/adxl362.pdf
+//Go to page 24 for register information
+
 #include "xspi.h"
 #include "xparameters.h"
 #include "xil_printf.h"
